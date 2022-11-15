@@ -3,8 +3,6 @@
 #include <iostream>
 
 AnalogIn LightSensor(PTB0);
-AnalogIn TemperatureSensor(PTB1);
-AnalogIn TorqueSensor(PTB2);
 InterruptIn START_BUTTON(PTD4);
 InterruptIn STOP_BUTTON(PTA12);
 DigitalOut RED_LED(LED1);
