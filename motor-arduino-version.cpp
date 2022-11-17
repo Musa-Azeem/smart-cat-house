@@ -26,10 +26,10 @@ const int buttonPin = 2; //Button to perform interrupt
 int ledToggle = LOW;     //led state
 
 // GLOBAL CONSTANTS
-#define V_SUPPLY 3.3f                   // Microcontroller voltage supply 3.3 V
+#define V_SUPPLY 5.0f                   // Microcontroller voltage supply 3.3 V
 #define MOTOR_SERIES_RESISTANCE 10.0f   // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
 #define MOTOR_CURRENT_LIMIT 0.1         // Threshold current in amps for motor to shut off
-#define CYCLE_TIME 500                  // Time in seconds for microcontroller to loop
+#define CYCLE_TIME 0.5                  // Time in seconds for microcontroller to loop
 #define DOOR_FALL_TIME 10               // Time in seconds that it takes house door to close 
 
 // GLOBAL VARIABLES
@@ -45,15 +45,27 @@ void setup() {
     
     pinMode(torquePin, INPUT);
     pinMode(pressureButton0Pin, INPUT_PULLUP);
-    pinMode(outputMotorUpPin, OUTPUT)
-    pinMode(outputMotorDownPin, OUTPUT)
+    pinMode(outputMotorUpPin, OUTPUT);
+    pinMode(outputMotorDownPin, OUTPUT);
 
     Serial.begin(9600);
 
     // Attach the functions to the hardware interrupt pins.
-    attachInterrupt(digitalPinToInterrupt(PressurButton0Pin), pressure_detected, FALLING);
-    attachInterrupt(digitalPinToInterrupt(PressurButton0Pin), pressure_relieved, RISING);
+    attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, CHANGE);
+    // attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, FALLING);
+    // attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, RISING);
 
+}
+
+void onPressure() {
+    
+    if (digitalRead(pressureButton0Pin) == HIGH) {
+        pressure_relieved();
+    }
+    else {
+        Serial.println("Call pressure detected");
+        pressure_detected();
+    }
 }
 
 void start_timer() {
@@ -61,7 +73,7 @@ void start_timer() {
      * Starts timer to count down
      */
 
-    Serial.print("Timer started");
+    Serial.println("Timer started");
     timer_on = 1;
 }
 
@@ -70,7 +82,7 @@ void stop_timer() {
      * Stops count down timer
      */
 
-    Serial.print("Timer Stopped" ;
+    Serial.println("Timer Stopped") ;
     timer_on = 0;
 }
 
@@ -87,11 +99,11 @@ void iterate_and_check_timer() {
 
     if (timer_state <= 0) {
         // If timer reaches zero, stop motor and reset timer
-        Serial.print("Timer Complete - stop motor down");
+        Serial.println("Timer Complete - stop motor down");
 
         stop_timer();                   // disable timer
         timer_state = DOOR_FALL_TIME;   // reset timer
-        digitalWrite(outputMotorDownPin, 0)
+        digitalWrite(outputMotorDownPin, 0);
     }
 }
 
@@ -103,8 +115,8 @@ void pressure_detected()
      * It should be called when pressure is detected on the pad
      */
 
-    Serial.print("Pressure Detected - Start Motor Up" );
-    digitalWrite(outputMotorUpPin, 1)
+    Serial.println("Pressure Detected - Start Motor Up" );
+    digitalWrite(outputMotorUpPin, 1);
 }
 
 void pressure_relieved()
@@ -116,8 +128,8 @@ void pressure_relieved()
      * It should be called when pressue on pad is relieved
      */
 
-    Serial.print("Pressure Gone - Start Motor Down" );
-    digitalWrite(outputMotorDownPin, 1)
+    Serial.println("Pressure Gone - Start Motor Down" );
+    digitalWrite(outputMotorDownPin, 1);
     start_timer();          // Start timer to stop motor
 }
 
@@ -135,7 +147,9 @@ float get_motor_current()
     float motor_current_digi_value = digitalRead(torquePin);
     float motor_current_volt_value = V_SUPPLY * motor_current_digi_value;
     float motor_current = motor_current_volt_value / MOTOR_SERIES_RESISTANCE;
-    Serial.print("\rMotor Current: " + motor_current );
+    Serial.print("Motor Current: ");
+    Serial.println(motor_current);
+
     return motor_current;
 }
 
@@ -147,9 +161,9 @@ void check_torque_sensor()
     */
 
     if(get_motor_current() >= MOTOR_CURRENT_LIMIT) {
-        Serial.print("Torque Overload - stopping motor" );
-        digitalWrite(outputMotorUpPin, 0)
-        digitalWrite(outputMotorDownPin, 0)
+        Serial.println("Torque Overload - stopping motor" );
+        digitalWrite(outputMotorUpPin, 0);
+        digitalWrite(outputMotorDownPin, 0);
     }
 }
 
@@ -161,10 +175,7 @@ void loop() {
     // Iterate and check timer
     iterate_and_check_timer();
 
-    // Print Current state of ouputs
-    Serial.print("\rOUTPUT MOTOR UP PTC3: " + OutputMotorUp)
-    Serial.print"\rOUTPUT MOTOR DOWN PTC9: " + OutputMotorDown)
 
-    delay(CYCLE_TIME); // Wait <cycle_time> seconds before repeating the loop.
+    delay(CYCLE_TIME*1000); // Wait <cycle_time> seconds before repeating the loop.
 }
 // End of HardwareInterruptSeedCode
