@@ -17,50 +17,51 @@
  *      Motor Current Measuring Resistor is 10 Ohms
  */
 
-#include "mbed.h"
-#include <iostream>
+// C++ code
+//
 
-// ASSIGN PINS
-// Sensor input
-AnalogIn TorqueSensor(PTA1);
 
-// Pressure Pad Buttons
-InterruptIn PressureButton0(PTA4);
-// InterruptIn PressureButton1(PTA5);
-// InterruptIn PressureButton2(PTC8);
-// InterruptIn PressureButton3(PTC9);
-
-// Output Signals
-DigitalOut OutputMotorUp(PTB0);
-DigitalOut OutputMotorDown(PTB1);
-
-// on-board LEDs
-DigitalOut RED_LED(LED1);
-DigitalOut GREEN_LED(LED2);
-DigitalOut BLUE_LED(LED3);
+const int ledPin = 12;   //ledPin
+const int buttonPin = 2; //Button to perform interrupt
+int ledToggle = LOW;     //led state
 
 // GLOBAL CONSTANTS
 #define V_SUPPLY 3.3f                   // Microcontroller voltage supply 3.3 V
 #define MOTOR_SERIES_RESISTANCE 10.0f   // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
 #define MOTOR_CURRENT_LIMIT 0.1         // Threshold current in amps for motor to shut off
-#define CYCLE_TIME 0.5                  // Time in seconds for microcontroller to loop
+#define CYCLE_TIME 500                  // Time in seconds for microcontroller to loop
 #define DOOR_FALL_TIME 10               // Time in seconds that it takes house door to close 
-
-// For LED function
-#define RED 0
-#define GREEN 1
-#define BLUE 2
 
 // GLOBAL VARIABLES
 bool timer_on = 0;                  // initialize with timer disabled
 float timer_state = DOOR_FALL_TIME; // initialize timer as time to clode door
+
+const int torquePin = 11;       // PWM analog
+const int pressureButton0Pin = 2;
+const int outputMotorUpPin = 6;
+const int outputMotorDownPin = 5;
+
+void setup() {
+    
+    pinMode(torquePin, INPUT);
+    pinMode(pressureButton0Pin, INPUT_PULLUP);
+    pinMode(outputMotorUpPin, OUTPUT)
+    pinMode(outputMotorDownPin, OUTPUT)
+
+    Serial.begin(9600);
+
+    // Attach the functions to the hardware interrupt pins.
+    attachInterrupt(digitalPinToInterrupt(PressurButton0Pin), pressure_detected, FALLING);
+    attachInterrupt(digitalPinToInterrupt(PressurButton0Pin), pressure_relieved, RISING);
+
+}
 
 void start_timer() {
     /**
      * Starts timer to count down
      */
 
-    cout << "Timer started" << endl;
+    Serial.print("Timer started");
     timer_on = 1;
 }
 
@@ -69,7 +70,7 @@ void stop_timer() {
      * Stops count down timer
      */
 
-    cout << "Timer Stopped" << endl;
+    Serial.print("Timer Stopped" ;
     timer_on = 0;
 }
 
@@ -86,32 +87,11 @@ void iterate_and_check_timer() {
 
     if (timer_state <= 0) {
         // If timer reaches zero, stop motor and reset timer
-        cout << "Timer Complete - stop motor down" << endl;
+        Serial.print("Timer Complete - stop motor down");
 
         stop_timer();                   // disable timer
         timer_state = DOOR_FALL_TIME;   // reset timer
-        OutputMotorDown = 0;            // Stop motor going down
-    }
-}
-
-
-void light_LED(int LED){
-    /**
-     * This function turns only the given color LED on
-     * Input:
-     *   0 -> RED
-     *   1 -> GREEN
-     *   2 -> BLUE
-     */
-
-    RED_LED = 1;
-    GREEN_LED = 1;
-    BLUE_LED = 1;
-
-    switch(LED) {
-        case RED:   RED_LED = 0;
-        case GREEN: GREEN_LED = 0;
-        case BLUE:  BLUE_LED = 0;
+        digitalWrite(outputMotorDownPin, 0)
     }
 }
 
@@ -123,9 +103,8 @@ void pressure_detected()
      * It should be called when pressure is detected on the pad
      */
 
-    cout << "Pressure Detected - Start Motor Up" << endl;
-    OutputMotorUp = 1;
-    light_LED(GREEN);
+    Serial.print("Pressure Detected - Start Motor Up" );
+    digitalWrite(outputMotorUpPin, 1)
 }
 
 void pressure_relieved()
@@ -137,10 +116,9 @@ void pressure_relieved()
      * It should be called when pressue on pad is relieved
      */
 
-    cout << "Pressure Gone - Start Motor Down" << endl;
-    OutputMotorDown = 1;
+    Serial.print("Pressure Gone - Start Motor Down" );
+    digitalWrite(outputMotorDownPin, 1)
     start_timer();          // Start timer to stop motor
-    light_LED(GREEN);
 }
 
 float get_motor_current()
@@ -154,10 +132,10 @@ float get_motor_current()
      *  3. Calculate motor current using Ohm's law from votlage and resistance 
      */  
 
-    float motor_current_digi_value = TorqueSensor.read();
+    float motor_current_digi_value = digitalRead(torquePin);
     float motor_current_volt_value = V_SUPPLY * motor_current_digi_value;
     float motor_current = motor_current_volt_value / MOTOR_SERIES_RESISTANCE;
-    cout << "\rMotor Current: " << motor_current << endl;
+    Serial.print("\rMotor Current: " + motor_current );
     return motor_current;
 }
 
@@ -169,47 +147,24 @@ void check_torque_sensor()
     */
 
     if(get_motor_current() >= MOTOR_CURRENT_LIMIT) {
-        cout << "Torque Overload - stopping motor" << endl;
-        OutputMotorUp = 0;        // Stop motor if going up   (usual case)
-        OutputMotorDown = 0;      // Stop motor if going down (only emergency)
-        light_LED(RED);
+        Serial.print("Torque Overload - stopping motor" );
+        digitalWrite(outputMotorUpPin, 0)
+        digitalWrite(outputMotorDownPin, 0)
     }
-}
-
-void attachInterrupts() {
-    PressureButton0.fall(&pressure_detected);
-    PressureButton0.rise(&pressure_relieved);
 }
 
 // Standard entry point in C++.
-int main(void)
-{
-    // Attach the functions to the hardware interrupt pins.
-    attachInterrupts();
-    
-    // Initialize LED outputs to OFF (LED logic is inverted)
-    RED_LED = 1;
-    GREEN_LED = 1;
-    BLUE_LED = 1;
+void loop() {
+    // Check the analog inputs.
+    check_torque_sensor();
 
-    // Blink the blue LED once to indicate the code is running.
-    BLUE_LED = !BLUE_LED;
-    wait(1.0);
-    BLUE_LED = !BLUE_LED;
+    // Iterate and check timer
+    iterate_and_check_timer();
 
-    while(true) {
+    // Print Current state of ouputs
+    Serial.print("\rOUTPUT MOTOR UP PTC3: " + OutputMotorUp)
+    Serial.print"\rOUTPUT MOTOR DOWN PTC9: " + OutputMotorDown)
 
-        // Check the analog inputs.
-        check_torque_sensor();
-
-        // Iterate and check timer
-        iterate_and_check_timer();
-
-        // Print Current state of ouputs
-        cout << "\rOUTPUT MOTOR UP PTC3: " << OutputMotorUp << endl;
-        cout << "\rOUTPUT MOTOR DOWN PTC9: " << OutputMotorDown << endl;
-
-        wait(CYCLE_TIME); // Wait <cycle_time> seconds before repeating the loop.
-    }
+    delay(CYCLE_TIME); // Wait <cycle_time> seconds before repeating the loop.
 }
 // End of HardwareInterruptSeedCode
