@@ -1,4 +1,3 @@
-// Last edit 10/19/2022
 #include "mbed.h"
 #include <iostream>
 
@@ -11,25 +10,22 @@ DigitalOut BLUE_LED(LED3);
 DigitalOut OUTPUT_MOTOR_UP(PTC3);
 DigitalOut OUTPUT_MOTOR_DOWN(PTC9);
 
-//int current_time = 0;
-double cycle_time = 0.5;
-//
-//void startTimer(int time) {
-//    while(current_time)
-//}
+// GLOBAL CONSTANTS
+#define V_SUPPLY 3.3f                   // Microcontroller voltage supply 3.3 V
+#define MOTOR_SERIES_RESISTANCE 10.0f   // Resistance of torque (current) sensing resistor in series with the Motor
+#define MOTOR_CURRENT_LIMIT = 0.1       // Threshold current in amps for motor to shut off
+#define CYCLE_TIME = 0.5                // Time in seconds for microcontroller to loop
+#define DOOR_FALL_TIME = 10             // Time in seconds that it takes house door to close 
 
-#define Vsupply 3.3f //microcontroller voltage supply 3.3V
+// GLOBAL VARIABLES
+bool timer_on = 0;
 
-//variables for torque sensor
-float MotorCurrentDigiValue; //the A/D converter value ready by the controller input pin
-float MotorCurrentVoltValue; //the voltage on the controller input pin (across the 10 ohm resistor) from the motor torque sensor
-float MotorCurrent; //computed from the voltage value
-#define MotorSeriesResistance 10.0f //resistance of torque (current) sensing resistor in series with the Motor
-
-float MotorCurrentLimit = 0.1; //enter a reference current in amperes for motor torque deactivatio
+void start_timer() {
+   timer_on = 1;
+}
 
 // This function will be attached to the start button interrupt.
-void pressureDetected(void)
+void pressure_detected(void)
 {
     cout << "Start Motor Up" << endl;
     RED_LED = 1;
@@ -37,38 +33,45 @@ void pressureDetected(void)
     OUTPUT_MOTOR_UP = 1;
 }
 
-void pressureGone(void)
+void pressure_gone(void)
 {
     cout << "Start Motor Down" << endl;
     BLUE_LED = 1;
     GREEN_LED = 0;
     RED_LED = 0;
     OUTPUT_MOTOR_DOWN = 1;
-//    startTimer(15);
+//    start_timer();
 }
 
-//This function will determine the motor current in amperes
-float getMotorCurrent(void)
+float get_motor_current(void)
 {
-    // 1. Read the TorqueSensor value and store it in MotorCurrentDigiValue
-    // 2. Calculate MotorCurrentVoltValue from MotorCurrentDigiValue and Vsupply
-    // 3. Calculate MotorCurrent using Ohm's law from MotorCurrentVoltValue and MotorSeriesResistance
+    /**
+     * This function will determine the motor current in amperes 
+     *  1. Read the TorqueSensor value to get the A/D converter value
+     *  2. Calculate voltage on the controller input pin (across the 10 Ohm 
+     *     resistor) from the motor torque sensor by multiplying the digi value
+     *     by the supply voltage
+     *  3. Calculate motor current using Ohm's law from votlage and resistance 
+     */  
 
-    MotorCurrentDigiValue = TorqueSensor.read();
-    MotorCurrentVoltValue = Vsupply * MotorCurrentDigiValue;
-    MotorCurrent = MotorCurrentVoltValue / MotorSeriesResistance;
-    return MotorCurrent;
+    float motor_current_digi_value = TorqueSensor.read();
+    float motor_current_volt_value = V_SUPPLY * motor_current_digi_value;
+    float motor_current = motor_current_volt_value / MOTOR_SERIES_RESISTANCE;
+    cout << "\rMotor Current: " << motor_current << endl;
+    return motor_current;
 }
 
-// This function will check the Over Torque analog input.
-void checkTorqueSensor(void)
+void check_torque_sensor(void)
 {
-    // Start Motor going up
-    if(getMotorCurrent() >= MotorCurrentLimit) {
-        cout << "Current Stop!" << endl;
-        OUTPUT_MOTOR_UP = 0;
-        OUTPUT_MOTOR_DOWN = 0;
-        GREEN_LED = 1;
+    /**
+     * This function will check if the current accross the motor is too high
+     * If it is, it stops the motor whether it is going up or down
+    */
+
+    if(get_motor_current() >= MOTOR_CURRENT_LIMIT) {
+        cout << "Torque Overload - stopping motor" << endl;
+        OUTPUT_MOTOR_UP = 0;        // Stop motor if going up   (usual case)
+        OUTPUT_MOTOR_DOWN = 0;      // Stop motor if going down (only emergency)
         RED_LED = 0;
     }
 }
@@ -77,8 +80,8 @@ void checkTorqueSensor(void)
 int main(void)
 {
     // Attach the functions to the hardware interrupt pins.
-    START_BUTTON.fall(&pressureDetected);
-    START_BUTTON.rise(&pressureGone);
+    START_BUTTON.fall(&pressure_detected);
+    START_BUTTON.rise(&pressure_gone);
     
     // Initialize LED outputs to OFF (LED logic is inverted)
     RED_LED = 1;
@@ -91,15 +94,15 @@ int main(void)
     BLUE_LED = !BLUE_LED;
 
     while(true) {
-        // Check the analog inputs.
-       //checkTorqueSensor();
 
-        // Print Analog Values to screen
-        cout << "\rMotor Current: " << getMotorCurrent() << endl;
+        // Check the analog inputs.
+        check_torque_sensor();
+
+        // Print Current state of ouputs
         cout << "\rOUTPUT MOTOR UP PTC3: " << OUTPUT_MOTOR_UP << endl;
         cout << "\rOUTPUT MOTOR DOWN PTC9: " << OUTPUT_MOTOR_DOWN << endl;
 
-        wait(cycle_time); // Wait 1 second before repeating the loop.
+        wait(CYCLE_TIME); // Wait <cycle_time> seconds before repeating the loop.
     }
 }
 // End of HardwareInterruptSeedCode
