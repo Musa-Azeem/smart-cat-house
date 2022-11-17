@@ -1,7 +1,9 @@
 /**
+ * VERSION FOR TESTING ON ARDUINO
+ * 
  * ELCT201 Final Project
  * 
- * Driver Code for KL25Z microcontroller 
+ * Driver Code for Arduino
  * 
  * Pins:
  *      PTA1:   Torque Sensor Input
@@ -12,47 +14,25 @@
  *      PTB1:   Motor Down Output
  * 
  * Circuit Assumptions:
- *      Motor Current Measuring Resistor is 1 Ohm
+ *      Motor Current Measuring Resistor is 10 Ohms
  */
 
-#include "mbed.h"
-#include <iostream>
+// C++ code
+//
 
-// ASSIGN PINS
-// Sensor input
-AnalogIn TorqueSensor(PTA1);
 
-// Pressure Pad Buttons
-InterruptIn PressureButton0(PTA4);
-// InterruptIn PressureButton1(PTA5);
-// InterruptIn PressureButton2(PTC8);
-// InterruptIn PressureButton3(PTC9);
-
-// Output Signals
-DigitalOut OutputMotorUp(PTB0);
-DigitalOut OutputMotorDown(PTB1);
-
-// on-board LEDs
-DigitalOut RED_LED(LED1);
-DigitalOut GREEN_LED(LED2);
-DigitalOut BLUE_LED(LED3);
+const int ledPin = 12;   //ledPin
+const int buttonPin = 2; //Button to perform interrupt
+int ledToggle = LOW;     //led state
 
 // GLOBAL CONSTANTS
-#define V_SUPPLY 3.3f                       // Microcontroller voltage supply 3.3 V
-#define MOTOR_SERIES_RESISTANCE 1.0f        // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
-#define MOTOR_CURRENT_LIMIT 0.1f            // Threshold current in amps for motor to shut off
-#define CYCLE_TIME 0.5f                     // Time in seconds for microcontroller to loop
-#define DOOR_FALL_TIME 10.0f                // Time in seconds that it takes house door to close 
-#define DOOR_RISE_TIME 10.0f                // Time in seconds that it takes house door to close 
+#define V_SUPPLY 5.0f                   // Microcontroller voltage supply 3.3 V
+#define MOTOR_SERIES_RESISTANCE 1.0f    // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
+#define MOTOR_CURRENT_LIMIT 0.1         // Threshold current in amps for motor to shut off
+#define CYCLE_TIME 0.5                  // Time in seconds for microcontroller to loop
+#define DOOR_FALL_TIME 10.0              // Time in seconds that it takes house door to close 
+#define DOOR_RISE_TIME 10.0              // Time in seconds that it takes house door to close 
 
-// For LED function
-#define RED 0
-#define GREEN 1
-#define BLUE 2
-
-// GLOBAL VARIABLES
-// bool timer_on = 0;                  // initialize with timer disabled
-// float timer_state = DOOR_FALL_TIME; // initialize timer as time to clode door
 // GLOBAL VARIABLES
 bool timer_up_en = false;                   // initialize with timer disabled
 bool timer_down_en = false;                 // initialize with timer disabled
@@ -60,12 +40,42 @@ float timer_down_value = DOOR_FALL_TIME;    // initialize timer as time to close
 float timer_up_value = DOOR_RISE_TIME;      // initialize timer as time to open door
 bool door_is_up = false;                    // True if door is up, false if it is down
 
+const int torquePin = 11;       // PWM analog
+const int pressureButton0Pin = 2;
+const int outputMotorUpPin = 6;
+const int outputMotorDownPin = 5;
+
+void setup() {
+    
+    pinMode(torquePin, INPUT);
+    pinMode(pressureButton0Pin, INPUT_PULLUP);
+    pinMode(outputMotorUpPin, OUTPUT);
+    pinMode(outputMotorDownPin, OUTPUT);
+
+    Serial.begin(9600);
+
+    // Attach the functions to the hardware interrupt pins.
+    attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), on_pressure, CHANGE);
+    // attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, FALLING);
+    // attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, RISING);
+
+}
+
+void on_pressure() {
+    
+    if (digitalRead(pressureButton0Pin) == HIGH) {
+        pressure_relieved();
+    }
+    else {
+        Serial.println("Call pressure detected");
+        pressure_detected();
+    }
+}
+
 void iterate_and_check_timer() {
     /**
      * If timer is enabled, iterates timer by the time passed based on CYCLE_TIME
      * If the timer ends, stops motor
-     * 
-     * Does this for either the timer going up or the timer going down
      */
 
     // Control timer for motor going up
@@ -75,10 +85,11 @@ void iterate_and_check_timer() {
 
         if (timer_up_value <= 0) {
             // If timer reaches zero, stop motor and reset timer
-            cout << "Stopping motor up" << endl;
+            Serial.println("Timer Complete - stop motor up");
+            
             timer_up_en = false;                // disable timer
             timer_up_value = DOOR_RISE_TIME;        // reset timer
-            OutputMotorUp = 0;
+            digitalWrite(outputMotorUpPin, 0);
             door_is_up = true;                      // door has reached top
         }
     }
@@ -90,33 +101,13 @@ void iterate_and_check_timer() {
 
         if (timer_down_value <= 0) {
             // If timer reaches zero, stop motor and reset timer
-            cout << "Stopping motor down" << endl;
+            Serial.println("Timer Complete - stop motor down");
+
             timer_down_en = false;                   // disable timer
             timer_down_value = DOOR_FALL_TIME;   // reset timer
-            OutputMotorDown = 0;
+            digitalWrite(outputMotorDownPin, 0);
             door_is_up = false;                      // door has reached bottom
         }
-    }
-}
-
-
-void light_LED(int LED){
-    /**
-     * This function turns only the given color LED on
-     * Input:
-     *   0 -> RED
-     *   1 -> GREEN
-     *   2 -> BLUE
-     */
-
-    RED_LED = 1;
-    GREEN_LED = 1;
-    BLUE_LED = 1;
-
-    switch(LED) {
-        case RED:   RED_LED = 0;
-        case GREEN: GREEN_LED = 0;
-        case BLUE:  BLUE_LED = 0;
     }
 }
 
@@ -129,13 +120,12 @@ void pressure_detected()
      * It should be called when pressure is detected on the pad
      */
 
-    cout << "Pressure Detected" << endl;
+    Serial.println("Pressure Detected");
     // Start motor up if the door is down and it is not already going up (timer is active)
     if (!door_is_up && !timer_up_en){
-        cout << " - Start Motor Up" << endl;;
-        OutputMotorUp = 1;
+        Serial.println(" - Start Motor Up");
+        digitalWrite(outputMotorUpPin, 1);
         timer_up_en = true;          // Start timer to stop motor
-        light_LED(GREEN);
     }
 }
 
@@ -148,13 +138,12 @@ void pressure_relieved()
      * It should be called when pressue on pad is relieved
      */
 
-    cout << "Pressure Relieved" << endl;
+    Serial.println("Pressure Gone");
     // Start motor down if the door is up and it is not already going down (timer is active)
     if (door_is_up && !timer_down_en){
-        cout << "- Start Motor Down" << endl;
-        OutputMotorDown = 1;
+        Serial.println("- Start Motor Down");
+        digitalWrite(outputMotorDownPin, 1);
         timer_down_en = true;          // Start timer to stop motor
-        light_LED(BLUE);
     }
 }
 
@@ -169,10 +158,12 @@ float get_motor_current()
      *  3. Calculate motor current using Ohm's law from votlage and resistance 
      */  
 
-    float motor_current_digi_value = TorqueSensor.read();
+    float motor_current_digi_value = digitalRead(torquePin);
     float motor_current_volt_value = V_SUPPLY * motor_current_digi_value;
     float motor_current = motor_current_volt_value / MOTOR_SERIES_RESISTANCE;
-    cout << "\rMotor Current: " << motor_current << endl;
+    Serial.print("Motor Current: ");
+    Serial.println(motor_current);
+
     return motor_current;
 }
 
@@ -184,46 +175,21 @@ void check_torque_sensor()
     */
 
     if(get_motor_current() >= MOTOR_CURRENT_LIMIT) {
-        cout << "Torque Overload - stopping motor" << endl;
-        OutputMotorUp = 0;        // Stop motor if going up   (usual case)
-        OutputMotorDown = 0;      // Stop motor if going down (only emergency)
-        light_LED(RED);
+        Serial.println("Torque Overload - stopping motor" );
+        digitalWrite(outputMotorUpPin, 0);
+        digitalWrite(outputMotorDownPin, 0);
     }
-}
-
-void attachInterrupts() {
-    PressureButton0.fall(&pressure_detected);
-    PressureButton0.rise(&pressure_relieved);
 }
 
 // Standard entry point in C++.
-int main(void) {
-    // Attach the functions to the hardware interrupt pins.
-    attachInterrupts();
-    
-    // Initialize LED outputs to OFF (LED logic is inverted)
-    RED_LED = 1;
-    GREEN_LED = 1;
-    BLUE_LED = 1;
+void loop() {
+    // Check the analog inputs.
+    check_torque_sensor();
 
-    // Blink the blue LED once to indicate the code is running.
-    BLUE_LED = !BLUE_LED;
-    wait(1.0);
-    BLUE_LED = !BLUE_LED;
+    // Iterate and check timer
+    iterate_and_check_timer();
 
-    while(true) {
 
-        // Check the analog inputs.
-        check_torque_sensor();
-
-        // Iterate and check timer
-        iterate_and_check_timer();
-
-        // Print Current state of ouputs
-        cout << "\rOUTPUT MOTOR UP PTC3: " << OutputMotorUp << endl;
-        cout << "\rOUTPUT MOTOR DOWN PTC9: " << OutputMotorDown << endl;
-
-        wait(CYCLE_TIME); // Wait <cycle_time> seconds before repeating the loop.
-    }
+    delay(CYCLE_TIME*1000); // Wait <cycle_time> seconds before repeating the loop.
 }
 // End of HardwareInterruptSeedCode
