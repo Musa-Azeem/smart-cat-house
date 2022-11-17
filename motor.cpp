@@ -121,6 +121,8 @@ void pressure_detected()
      * It should be called when pressure is detected on the pad
      */
 
+    // TODO check that a certain amount of time has passed since last
+    // interrupt - to ensure they are seperate events
     cout << "Pressure Detected - Start Motor Up" << endl;
     OutputMotorUp = 1;
     light_LED(GREEN);
@@ -135,6 +137,9 @@ void pressure_relieved()
      * It should be called when pressue on pad is relieved
      */
 
+    // TODO check that a certain amount of time has passed since last
+    // interrupt - to ensure they are seperate events
+    
     cout << "Pressure Gone - Start Motor Down" << endl;
     OutputMotorDown = 1;
     start_timer();          // Start timer to stop motor
@@ -180,8 +185,7 @@ void attachInterrupts() {
 }
 
 // Standard entry point in C++.
-int main(void)
-{
+int main(void) {
     // Attach the functions to the hardware interrupt pins.
     attachInterrupts();
     
