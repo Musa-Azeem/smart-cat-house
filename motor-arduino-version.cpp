@@ -27,14 +27,18 @@ int ledToggle = LOW;     //led state
 
 // GLOBAL CONSTANTS
 #define V_SUPPLY 5.0f                   // Microcontroller voltage supply 3.3 V
-#define MOTOR_SERIES_RESISTANCE 10.0f   // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
+#define MOTOR_SERIES_RESISTANCE 1.0f    // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
 #define MOTOR_CURRENT_LIMIT 0.1         // Threshold current in amps for motor to shut off
 #define CYCLE_TIME 0.5                  // Time in seconds for microcontroller to loop
-#define DOOR_FALL_TIME 10               // Time in seconds that it takes house door to close 
+#define DOOR_FALL_TIME 10.0              // Time in seconds that it takes house door to close 
+#define DOOR_RISE_TIME 10.0              // Time in seconds that it takes house door to close 
 
 // GLOBAL VARIABLES
-bool timer_on = 0;                  // initialize with timer disabled
-float timer_state = DOOR_FALL_TIME; // initialize timer as time to clode door
+bool timer_up_en = false;                   // initialize with timer disabled
+bool timer_down_en = false;                 // initialize with timer disabled
+float timer_down_value = DOOR_FALL_TIME;    // initialize timer as time to close door
+float timer_up_value = DOOR_RISE_TIME;      // initialize timer as time to open door
+bool door_is_up = false;                    // True if door is up, false if it is down
 
 const int torquePin = 11;       // PWM analog
 const int pressureButton0Pin = 2;
@@ -51,13 +55,13 @@ void setup() {
     Serial.begin(9600);
 
     // Attach the functions to the hardware interrupt pins.
-    attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), on_pressure, CHANGE);
     // attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, FALLING);
     // attachInterrupt(digitalPinToInterrupt(pressureButton0Pin), onPressure, RISING);
 
 }
 
-void onPressure() {
+void on_pressure() {
     
     if (digitalRead(pressureButton0Pin) == HIGH) {
         pressure_relieved();
@@ -68,42 +72,42 @@ void onPressure() {
     }
 }
 
-void start_timer() {
-    /**
-     * Starts timer to count down
-     */
-
-    Serial.println("Timer started");
-    timer_on = 1;
-}
-
-void stop_timer() {
-    /**
-     * Stops count down timer
-     */
-
-    Serial.println("Timer Stopped") ;
-    timer_on = 0;
-}
-
 void iterate_and_check_timer() {
     /**
      * If timer is enabled, iterates timer by the time passed based on CYCLE_TIME
      * If the timer ends, stops motor
      */
 
-    if (timer_on) {
-        // Advance by CYCLE_TIME each cycle if timer is enabled
-        timer_state -= CYCLE_TIME;
+    // Control timer for motor going up
+    if (timer_up_en) {
+        // Advance by CYCLE_TIME each cycle if up timer is enabled
+        timer_up_value -= CYCLE_TIME;
+
+        if (timer_up_value <= 0) {
+            // If timer reaches zero, stop motor and reset timer
+            Serial.println("Timer Complete - stop motor up");
+            
+            timer_up_en = false;                // disable timer
+            timer_up_value = DOOR_RISE_TIME;        // reset timer
+            digitalWrite(outputMotorUpPin, 0);
+            door_is_up = true;                      // door has reached top
+        }
     }
 
-    if (timer_state <= 0) {
-        // If timer reaches zero, stop motor and reset timer
-        Serial.println("Timer Complete - stop motor down");
+    // Control timer for motor going down
+    else if (timer_down_en) {
+        // Advance by CYCLE_TIME each cycle if timer is enabled
+        timer_down_value -= CYCLE_TIME;
 
-        stop_timer();                   // disable timer
-        timer_state = DOOR_FALL_TIME;   // reset timer
-        digitalWrite(outputMotorDownPin, 0);
+        if (timer_down_value <= 0) {
+            // If timer reaches zero, stop motor and reset timer
+            Serial.println("Timer Complete - stop motor down");
+
+            timer_down_en = false;                   // disable timer
+            timer_down_value = DOOR_FALL_TIME;   // reset timer
+            digitalWrite(outputMotorDownPin, 0);
+            door_is_up = false;                      // door has reached bottom
+        }
     }
 }
 
@@ -111,26 +115,36 @@ void iterate_and_check_timer() {
 void pressure_detected()
 {
     /**
-     * This function starts the motor going up
+     * This function starts the motor going up if the door is not already up
+     * It also startes the timer for going up
      * It should be called when pressure is detected on the pad
      */
 
-    Serial.println("Pressure Detected - Start Motor Up" );
-    digitalWrite(outputMotorUpPin, 1);
+    Serial.println("Pressure Detected");
+    // Start motor up if the door is down and it is not already going up (timer is active)
+    if (!door_is_up && !timer_up_en){
+        Serial.println(" - Start Motor Up");
+        digitalWrite(outputMotorUpPin, 1);
+        timer_up_en = true;          // Start timer to stop motor
+    }
 }
 
 void pressure_relieved()
 {
     /**
-     * This function starts the motor going down
+     * This function starts the motor going down if the door is up
      * It also starts the timer to count down until the motor
      *  should be stopped
      * It should be called when pressue on pad is relieved
      */
 
-    Serial.println("Pressure Gone - Start Motor Down" );
-    digitalWrite(outputMotorDownPin, 1);
-    start_timer();          // Start timer to stop motor
+    Serial.println("Pressure Gone");
+    // Start motor down if the door is up and it is not already going down (timer is active)
+    if (door_is_up && !timer_down_en){
+        Serial.println("- Start Motor Down");
+        digitalWrite(outputMotorDownPin, 1);
+        timer_down_en = true;          // Start timer to stop motor
+    }
 }
 
 float get_motor_current()
