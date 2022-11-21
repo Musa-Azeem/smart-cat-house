@@ -18,7 +18,7 @@
  * 
  * Circuit Assumptions:
  *      Motor Current Measuring Resistor is 10 Ohm
- *      Upper Leg of LDR voltage divider is 3.3 kOhm
+ *      Upper Leg of LDR voltage divider is 10 kOhm
  *      Upper Leg of Thermistor voltage divider is 10 kOhm
  */
 
@@ -56,7 +56,7 @@ DigitalOut BLUE_LED(LED3);
 #define DOOR_RISE_TIME 10.0f                // Time in seconds that it takes house door to close 
 
 // Light System
-#define LDR_BIAS_RESISTOR 3300.0f           // Bias resistor (upper leg of voltage divider) for LDR
+#define LDR_BIAS_RESISTOR 10000.0f          // Bias resistor (upper leg of voltage divider) for LDR
 #define LIGHT_RESISTANCE_LIMIT 25000.0f     // Threshold resistance for Output Light activation
 
 // Temperature System
