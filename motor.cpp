@@ -53,6 +53,16 @@ float timer_down_value = DOOR_FALL_TIME;    // initialize timer as time to close
 float timer_up_value = DOOR_RISE_TIME;      // initialize timer as time to open door
 bool door_is_up = false;                    // True if door is up, false if it is down
 
+
+void iterate_and_check_timer();
+void light_LED(int LED);
+void pressure_detected();
+void pressure_relieved();
+float get_motor_current();
+void check_torque_sensor();
+void attachInterrupts();
+
+
 void iterate_and_check_timer() {
     /**
      * If timer is enabled, iterates timer by the time passed based on CYCLE_TIME
@@ -69,6 +79,7 @@ void iterate_and_check_timer() {
         if (timer_up_value <= 0) {
             // If timer reaches zero, stop motor and reset timer
             cout << "Stopping motor up" << endl;
+            light_LED(RED);
             timer_up_en = false;                // disable timer
             timer_up_value = DOOR_RISE_TIME;        // reset timer
             OutputMotorUp = 0;
@@ -84,6 +95,7 @@ void iterate_and_check_timer() {
         if (timer_down_value <= 0) {
             // If timer reaches zero, stop motor and reset timer
             cout << "Stopping motor down" << endl;
+            light_LED(RED);
             timer_down_en = false;                   // disable timer
             timer_down_value = DOOR_FALL_TIME;   // reset timer
             OutputMotorDown = 0;
