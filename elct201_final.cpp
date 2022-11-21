@@ -18,6 +18,8 @@
  * 
  * Circuit Assumptions:
  *      Motor Current Measuring Resistor is 10 Ohm
+ *      Upper Leg of LDR voltage divider is 3.3 kOhm
+ *      Upper Leg of Thermistor voltage divider is 10 kOhm
  */
 
 #include "mbed.h"
