@@ -12,7 +12,7 @@
  *      PTB1:   Motor Down Output
  * 
  * Circuit Assumptions:
- *      Motor Current Measuring Resistor is 1 Ohm
+ *      Motor Current Measuring Resistor is 10 Ohm
  */
 
 #include "mbed.h"
@@ -39,7 +39,7 @@ DigitalOut BLUE_LED(LED3);
 
 // GLOBAL CONSTANTS
 #define V_SUPPLY 3.3f                       // Microcontroller voltage supply 3.3 V
-#define MOTOR_SERIES_RESISTANCE 1.0f        // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
+#define MOTOR_SERIES_RESISTANCE 10.0f       // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
 #define MOTOR_CURRENT_LIMIT 0.1f            // Threshold current in amps for motor to shut off
 #define CYCLE_TIME 0.5f                     // Time in seconds for microcontroller to loop
 #define DOOR_FALL_TIME 10.0f                // Time in seconds that it takes house door to close 
