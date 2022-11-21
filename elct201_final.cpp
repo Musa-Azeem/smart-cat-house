@@ -5,11 +5,16 @@
  * Combination of motor, light, and temperature systems
  * 
  * Pins:
- *      PTD1:   Torque Sensor Input
+ *      PTB0:   Torque Sensor Input
+ *      PTB1:   Temperature Sensor
+ *      PTB2:   Light Sensor
+ * 
  *      PTA1:   Pressure Pad Button 0 Interrupt
  *      
- *      PTB0:   Motor Up Output
- *      PTB1:   Motor Down Output
+ *      PTC9:   Motor Up Output
+ *      PTC8:   Motor Down Output
+ *      PTA5:   Light Output
+ *      PTA4:   Heater Output
  * 
  * Circuit Assumptions:
  *      Motor Current Measuring Resistor is 10 Ohm
@@ -20,15 +25,18 @@
 
 // ASSIGN PINS
 // Sensor input
-AnalogIn TorqueSensor(PTD1);
+AnalogIn TorqueSensor(PTB0);
+AnalogIn TemperatureSensor(PTB1);
+AnalogIn LightSensor(PTB2);
 
 // Pressure Pad Buttons
 InterruptIn PressureButton0(PTA1);
 
 // Output Signals
-DigitalOut OutputMotorUp(PTB0);
-DigitalOut OutputMotorDown(PTB1);
-DigitalOut OutputLight(PTC1);
+DigitalOut OutputMotorUp(PTC9);
+DigitalOut OutputMotorDown(PTC8);
+DigitalOut OutputLight(PTA5);
+DigitalOut OutputHeater(PTA4);
 
 // on-board LEDs
 DigitalOut RED_LED(LED1);
@@ -47,7 +55,12 @@ DigitalOut BLUE_LED(LED3);
 
 // Light System
 #define LDR_BIAS_RESISTOR 3300.0f           // Bias resistor (upper leg of voltage divider) for LDR
-#define LIGHT_RESISTANCE_LIMIT = 25000.0f     // Threshold resistance for Output Light activation
+#define LIGHT_RESISTANCE_LIMIT 25000.0f     // Threshold resistance for Output Light activation
+
+// Temperature System
+#define THERMISTOR_BIAS_RESISTOR 10000.0f   // Bias resistor (lower leg of voltage divider) for thermistor
+#define TEMPERATURE_LIMIT 10.0f             // Enter a temperature in Celsius here for temperature deactivation; NOTE: room temperature is 25C
+
 
 // For LED function
 #define RED 0
@@ -71,7 +84,50 @@ void check_torque_sensor();
 void attachInterrupts();
 float get_photo_resistance();
 void check_light_sensor();
+float get_thermistor_temperature();
+void check_temperature_sensor();
 
+
+// Standard entry point in C++.
+int main(void) {
+    // Attach the functions to the hardware interrupt pins.
+    attachInterrupts();
+    
+    // Initialize LED outputs to OFF (LED logic is inverted)
+    RED_LED = 1;
+    GREEN_LED = 1;
+    BLUE_LED = 1;
+
+    // Blink the blue LED once to indicate the code is running.
+    BLUE_LED = !BLUE_LED;
+    wait(1.0);
+    BLUE_LED = !BLUE_LED;
+
+    while(true) {
+
+        // Check the analog inputs.
+        check_torque_sensor();
+        check_light_sensor();
+        check_temperature_sensor();
+
+        // Iterate and check timer
+        iterate_and_check_timer();
+
+        // Print Current state of ouputs
+        cout << "\rOUTPUT MOTOR UP (PTC9): " << OutputMotorUp << endl;
+        cout << "\rOUTPUT MOTOR DOWN (PTC8): " << OutputMotorDown << endl;
+        cout << "\rOUTPUT LIGHT (PTA5): " << OutputLight << endl;
+        cout << "\rOUTPUT HEATER (PTA4): " << OutputHeater << endl;
+        
+
+        wait(CYCLE_TIME); // Wait <cycle_time> seconds before repeating the loop.
+    }
+}
+
+void attachInterrupts() {
+    PressureButton0.fall(&pressure_detected);
+    PressureButton0.rise(&pressure_relieved);
+}
 
 void iterate_and_check_timer() {
     /**
@@ -194,7 +250,7 @@ void check_torque_sensor() {
      * If it is, it stops the motor whether it is going up or down
     */
 
-    if(get_motor_current() >= MOTOR_CURRENT_LIMIT) {
+    if (get_motor_current() >= MOTOR_CURRENT_LIMIT) {
         cout << "Torque Overload - stopping motor" << endl;
         OutputMotorUp = 0;        // Stop motor if going up   (usual case)
         OutputMotorDown = 0;      // Stop motor if going down (only emergency)
@@ -210,9 +266,9 @@ float get_photo_resistance() {
      *     by multiplying the digi value by the supply voltage
      *  3. Calculate LDR resistance using the voltage divider equation
      */  
-    float light_sensor_digi_value = LightSensor.read();            // Read the LightSensor A/D value
-    float light_sensor_volt_value = V_SUPPLY*light_sensor_digi_value;  // Convert to voltage
-    float ldr_resistance = LDR_BIAS_RESISTOR*((V_SUPPLY - light_sensor_volt_value) / light_sensor_volt_value); //voltage divider equation to determine LDR resistance
+    float light_sensor_digi_value = LightSensor.read();
+    float light_sensor_volt_value = V_SUPPLY*light_sensor_digi_value;
+    float ldr_resistance = LDR_BIAS_RESISTOR*((V_SUPPLY - light_sensor_volt_value) / light_sensor_volt_value);
     cout << "\rLDR Resistance: " << ldr_resistance << endl;
     return ldr_resistance;
 }
@@ -223,46 +279,44 @@ void check_light_sensor() {
      * If it has, it activates the light
      */
 
-    if(get_photo_resistance() >= LIGHT_RESISTANCE_LIMIT) {
+    if (get_photo_resistance() >= LIGHT_RESISTANCE_LIMIT) {
         cout << "Output Light On" << endl;
-        light_LED(GREEN);
+        OutputLight = 1;
+    }
+    else {
+        OutputLight = 0;
     }
 }
 
-void attachInterrupts() {
-    PressureButton0.fall(&pressure_detected);
-    PressureButton0.rise(&pressure_relieved);
+float get_thermistor_temperature() {
+    /**
+     * This function will determine the temperature in degrees
+     *  1. Read the TemperatureSensor value to get the A/D converter value
+     *  2. Calculate voltage on the controller input pin from the temperature sensor
+     *     by multiplying the digi value by the supply voltage
+     *  3. Calculate thermistor resistance using the voltage divider equation
+     *  4. Calculate temperature using the thermistor's linear relationship between
+     *     resistance and temperature
+     */  
+    float temp_sensor_digi_value = TemperatureSensor.read();
+    float temp_sensor_volt_value = V_SUPPLY*temp_sensor_digi_value;
+    float thermistor_resistance = THERMISTOR_BIAS_RESISTOR*((V_SUPPLY - temp_sensor_volt_value) / temp_sensor_volt_value);
+    float thermistor_temp = ((thermistor_resistance - 10000.0)/(-320.0)) + 25.0;
+    cout << "Temperature: " << thermistor_temp << endl;
+    return thermistor_temp;
 }
 
-// Standard entry point in C++.
-int main(void) {
-    // Attach the functions to the hardware interrupt pins.
-    attachInterrupts();
-    
-    // Initialize LED outputs to OFF (LED logic is inverted)
-    RED_LED = 1;
-    GREEN_LED = 1;
-    BLUE_LED = 1;
-
-    // Blink the blue LED once to indicate the code is running.
-    BLUE_LED = !BLUE_LED;
-    wait(1.0);
-    BLUE_LED = !BLUE_LED;
-
-    while(true) {
-
-        // Check the analog inputs.
-        check_torque_sensor();
-        check_light_sensor();
-
-        // Iterate and check timer
-        iterate_and_check_timer();
-
-        // Print Current state of ouputs
-        cout << "\rOUTPUT MOTOR UP PTC3: " << OutputMotorUp << endl;
-        cout << "\rOUTPUT MOTOR DOWN PTC9: " << OutputMotorDown << endl;
-
-        wait(CYCLE_TIME); // Wait <cycle_time> seconds before repeating the loop.
+void check_temperature_sensor() {
+    /**
+     * This function will check if the temperature has crossed the threshold by
+     *  checking the thermistor measured temperature
+     * If it has, it activates the heater
+     */
+    if (get_thermistor_temperature() <= TEMPERATURE_LIMIT) {
+        cout << "Heater Activated" << endl;
+        OutputHeater = 1; // 0.91; <- what is 0.91 for?
+    }
+    else {
+        OutputHeater = 0;
     }
 }
-// End of HardwareInterruptSeedCode
