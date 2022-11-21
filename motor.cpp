@@ -5,8 +5,7 @@
  * 
  * Pins:
  *      PTD1:   Torque Sensor Input
- *      PTA4:   Pressure Pad Button 0 Interrupt
- *      PTA5:   Pressure Pad Button 1 Interrupt
+ *      PTA1:   Pressure Pad Button 0 Interrupt
  *      
  *      PTB0:   Motor Up Output
  *      PTB1:   Motor Down Output
@@ -23,10 +22,7 @@
 AnalogIn TorqueSensor(PTD1);
 
 // Pressure Pad Buttons
-InterruptIn PressureButton0(PTA4);
-// InterruptIn PressureButton1(PTA5);
-// InterruptIn PressureButton2(PTC8);
-// InterruptIn PressureButton3(PTC9);
+InterruptIn PressureButton0(PTA1);
 
 // Output Signals
 DigitalOut OutputMotorUp(PTB0);
@@ -50,9 +46,6 @@ DigitalOut BLUE_LED(LED3);
 #define GREEN 1
 #define BLUE 2
 
-// GLOBAL VARIABLES
-// bool timer_on = 0;                  // initialize with timer disabled
-// float timer_state = DOOR_FALL_TIME; // initialize timer as time to clode door
 // GLOBAL VARIABLES
 bool timer_up_en = false;                   // initialize with timer disabled
 bool timer_down_en = false;                 // initialize with timer disabled
