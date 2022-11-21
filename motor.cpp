@@ -4,7 +4,7 @@
  * Driver Code for KL25Z microcontroller 
  * 
  * Pins:
- *      PTA1:   Torque Sensor Input
+ *      PTD1:   Torque Sensor Input
  *      PTA4:   Pressure Pad Button 0 Interrupt
  *      PTA5:   Pressure Pad Button 1 Interrupt
  *      
@@ -20,7 +20,7 @@
 
 // ASSIGN PINS
 // Sensor input
-AnalogIn TorqueSensor(PTA1);
+AnalogIn TorqueSensor(PTD1);
 
 // Pressure Pad Buttons
 InterruptIn PressureButton0(PTA4);
