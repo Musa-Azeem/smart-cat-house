@@ -119,9 +119,9 @@ void light_LED(int LED){
     BLUE_LED = 1;
 
     switch(LED) {
-        case RED:   RED_LED = 0;
-        case GREEN: GREEN_LED = 0;
-        case BLUE:  BLUE_LED = 0;
+        case RED:   RED_LED = 0;    break;
+        case GREEN: GREEN_LED = 0;  break;
+        case BLUE:  BLUE_LED = 0;   break;
     }
 }
 
