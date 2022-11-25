@@ -78,7 +78,7 @@ bool timer_down_en = false;                 // initialize with timer disabled
 bool timer_wait_en = false;                 // initialize with timer disabled
 float timer_down_value = DOOR_FALL_TIME;    // initialize timer as time to close door
 float timer_up_value = DOOR_RISE_TIME;      // initialize timer as time to open door
-float timer_wait_value = DOOR_WAIT_TIME     // initialize timer as wait time
+float timer_wait_value = DOOR_WAIT_TIME;    // initialize timer as wait time
 
 bool button_en = true;                      // Enables pressure pad to lift and close door when pushed
 
