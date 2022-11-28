@@ -50,8 +50,8 @@ DigitalOut BLUE_LED(LED3);
 #define CYCLE_TIME 0.5f                     // Time in seconds for microcontroller to loop
 
 // Motor System
-#define DOOR_FALL_TIME 10.0f                // Time in seconds that it takes house door to close 
-#define DOOR_RISE_TIME 10.0f                // Time in seconds that it takes house door to close 
+#define DOOR_FALL_TIME 1.018f               // Time in seconds that it takes house door to close 
+#define DOOR_RISE_TIME 1.30f                // Time in seconds that it takes house door to close 
 
 // Light System
 #define LDR_BIAS_RESISTOR 10000.0f          // Bias resistor (upper leg of voltage divider) for LDR
