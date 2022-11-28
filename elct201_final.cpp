@@ -27,7 +27,6 @@
 
 // ASSIGN PINS
 // Sensor input
-AnalogIn TorqueSensor(PTB0);
 AnalogIn TemperatureSensor(PTB1);
 AnalogIn LightSensor(PTB2);
 
@@ -48,12 +47,11 @@ DigitalOut BLUE_LED(LED3);
 // GLOBAL CONSTANTS
 #define V_SUPPLY 3.3f                       // Microcontroller voltage supply 3.3 V
 
-// Motor System
-#define MOTOR_SERIES_RESISTANCE 10.0f       // Resistance of torque (current) sensing resistor in series with the Motor in Ohms
-#define MOTOR_CURRENT_LIMIT 0.1f            // Threshold current in amps for motor to shut off
 #define CYCLE_TIME 0.5f                     // Time in seconds for microcontroller to loop
-#define DOOR_FALL_TIME 3.0f                 // Time in seconds that it takes house door to close 
-#define DOOR_RISE_TIME 3.0f                 // Time in seconds that it takes house door to close 
+
+// Motor System
+#define DOOR_FALL_TIME 10.0f                // Time in seconds that it takes house door to close 
+#define DOOR_RISE_TIME 10.0f                // Time in seconds that it takes house door to close 
 
 // Light System
 #define LDR_BIAS_RESISTOR 10000.0f          // Bias resistor (upper leg of voltage divider) for LDR
@@ -81,7 +79,6 @@ void iterate_and_check_timer();
 void light_LED(int LED);
 void pressure_detected();
 void pressure_relieved();
-float get_motor_current();
 void check_torque_sensor();
 void attachInterrupts();
 float get_photo_resistance();
@@ -108,7 +105,6 @@ int main(void) {
     while(true) {
 
         // Check the analog inputs.
-        check_torque_sensor();
         check_light_sensor();
         check_temperature_sensor();
 
@@ -226,37 +222,6 @@ void pressure_relieved() {
         OutputMotorDown = 1;
         timer_down_en = true;          // Start timer to stop motor
         light_LED(BLUE);
-    }
-}
-
-float get_motor_current() {
-    /**
-     * This function will determine the motor current in amperes 
-     *  1. Read the TorqueSensor value to get the A/D converter value
-     *  2. Calculate voltage on the controller input pin (across the 10 Ohm 
-     *     resistor) from the motor torque sensor by multiplying the digi value
-     *     by the supply voltage
-     *  3. Calculate motor current using Ohm's law from votlage and resistance 
-     */  
-
-    float motor_current_digi_value = TorqueSensor.read();
-    float motor_current_volt_value = V_SUPPLY * motor_current_digi_value;
-    float motor_current = motor_current_volt_value / MOTOR_SERIES_RESISTANCE;
-    cout << "\rMotor Current: " << motor_current << endl;
-    return motor_current;
-}
-
-void check_torque_sensor() {
-    /**
-     * This function will check if the current accross the motor is too high
-     * If it is, it stops the motor whether it is going up or down
-    */
-
-    if (get_motor_current() >= MOTOR_CURRENT_LIMIT) {
-        cout << "Torque Overload - stopping motor" << endl;
-        OutputMotorUp = 0;        // Stop motor if going up   (usual case)
-        OutputMotorDown = 0;      // Stop motor if going down (only emergency)
-        light_LED(RED);
     }
 }
 
